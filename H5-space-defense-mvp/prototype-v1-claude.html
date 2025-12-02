@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Defense Command</title>
+    <style>
+        /* =================================
+           GLOBAL STYLES & LAYOUT
+        ================================= */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 1000px;
+            height: 700px;
+            background: radial-gradient(ellipse at center, #001122 0%, #000000 100%);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: transparent;
+        }
+
+        /* =================================
+           UI OVERLAY STYLES
+        ================================= */
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #00ff88;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #startScreen h1 {
+            font-size: 48px;
+            color: #00ff88;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ff88;
+        }
+
+        #startScreen button {
+            font-size: 24px;
+            padding: 15px 30px;
+            background: #00ff88;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #startScreen button:hover {
+            background: #00dd77;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #00ff88;
+        }
+
+        #instructions {
+            margin-top: 20px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .stat {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .wave-complete {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            color: #00ff88;
+            z-index: 50;
+            display: none;
+            text-shadow: 0 0 20px #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas" width="1000" height="700"></canvas>
+        
+        <!-- UI Overlay -->
+        <div id="ui">
+            <div class="stat">Wave: <span id="wave">1</span></div>
+            <div class="stat">Score: <span id="score">0</span></div>
+            <div class="stat">Resources: <span id="resources">100</span></div>
+            <div class="stat">Base Health: <span id="baseHealth">100</span></div>
+            <div class="stat">Enemies Left: <span id="enemiesLeft">0</span></div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="startScreen">
+            <h1>SPACE DEFENSE COMMAND</h1>
+            <button onclick="startGame()">START DEFENSE</button>
+            <div id="instructions">
+                <p>🎯 Click empty spots to place turrets (Cost: 50 resources)</p>
+                <p>🚀 Turrets automatically target enemies</p>
+                <p>🛡️ Protect your base from alien invasion!</p>
+                <p>⚡ Each wave gets harder - plan your defense!</p>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOver">
+            <h1>DEFENSE FAILED</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>Waves Survived: <span id="wavesSurvived">0</span></p>
+            <button onclick="restartGame()">TRY AGAIN</button>
+        </div>
+
+        <!-- Wave Complete Message -->
+        <div class="wave-complete" id="waveComplete">WAVE COMPLETE!</div>
+    </div>
+
+    <script>
+        /* =================================
+           GAME STATE AND CONFIGURATION
+        ================================= */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let gameState = {
+            isPlaying: false,
+            score: 0,
+            resources: 100,
+            wave: 1,
+            baseHealth: 100,
+            gameOver: false
+        };
+
+        // Game objects arrays
+        let turrets = [];
+        let enemies = [];
+        let projectiles = [];
+        let particles = [];
+
+        // Enemy path (curved path from left to right)
+        const enemyPath = [
+            {x: -50, y: 350},
+            {x: 100, y: 350},
+            {x: 200, y: 200},
+            {x: 400, y: 150},
+            {x: 600, y: 300},
+            {x: 800, y: 400},
+            {x: 1000, y: 350},
+            {x: 1100, y: 350}
+        ];
+
+        // Wave management
+        let currentWave = [];
+        let waveComplete = false;
+        let enemiesSpawned = 0;
+        let nextSpawnTime = 0;
+
+        /* =================================
+           GAME CLASSES
+        ================================= */
+
+        class Turret {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.range = 150;
+                this.damage = 25;
+                this.lastShot = 0;
+                this.fireRate = 800; // milliseconds between shots
+                this.target = null;
+                this.angle = 0;
+            }
+
+            update(timestamp) {
+                // Find nearest enemy in range
+                this.target = null;
+                let closestDistance = this.range;
+                
+                for (let enemy of enemies) {
+                    let distance = Math.sqrt(
+                        Math.pow(enemy.x - this.x, 2) + 
+                        Math.pow(enemy.y - this.y, 2)
+                    );
+                    
+                    if (distance < closestDistance) {
+                        this.target = enemy;
+                        closestDistance = distance;
+                    }
+                }
+
+                // Aim at target
+                if (this.target) {
+                    this.angle = Math.atan2(
+                        this.target.y - this.y,
+                        this.target.x - this.x
+                    );
+
+                    // Shoot if ready
+                    if (timestamp - this.lastShot > this.fireRate) {
+                        this.shoot(timestamp);
+                        this.lastShot = timestamp;
+                    }
+                }
+            }
+
+            shoot(timestamp) {
+                if (!this.target) return;
+                
+                projectiles.push(new Projectile(
+                    this.x, this.y, 
+                    this.target,
+                    this.damage
+                ));
+            }
+
+            draw() {
+                // Draw turret base
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw turret barrel
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(
+                    this.x + Math.cos(this.angle) * 25,
+                    this.y + Math.sin(this.angle) * 25
+                );
+                ctx.stroke();
+
+                // Draw range indicator when placing turrets
+                if (window.placingTurret) {
+                    ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        class Enemy {
+            constructor(health, speed, reward) {
+                this.health = health;
+                this.maxHealth = health;
+                this.speed = speed;
+                this.reward = reward;
+                this.pathIndex = 0;
+                this.x = enemyPath[0].x;
+                this.y = enemyPath[0].y;
+                this.progress = 0;
+            }
+
+            update() {
+                // Move along path
+                if (this.pathIndex < enemyPath.length - 1) {
+                    let current = enemyPath[this.pathIndex];
+                    let next = enemyPath[this.pathIndex + 1];
+                    
+                    let dx = next.x - current.x;
+                    let dy = next.y - current.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    this.progress += this.speed / distance;
+                    
+                    if (this.progress >= 1) {
+                        this.pathIndex++;
+                        this.progress = 0;
+                    }
+                    
+                    if (this.pathIndex < enemyPath.length - 1) {
+                        current = enemyPath[this.pathIndex];
+                        next = enemyPath[this.pathIndex + 1];
+                        
+                        this.x = current.x + (next.x - current.x) * this.progress;
+                        this.y = current.y + (next.y - current.y) * this.progress;
+                    }
+                }
+            }
+
+            takeDamage(damage) {
+                this.health -= damage;
+                return this.health <= 0;
+            }
+
+            reachedEnd() {
+                return this.pathIndex >= enemyPath.length - 1;
+            }
+
+            draw() {
+                // Draw enemy body
+                ctx.fillStyle = this.health < this.maxHealth * 0.3 ? '#ff4444' : '#ff6666';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw health bar
+                let barWidth = 30;
+                let barHeight = 4;
+                let healthPercent = this.health / this.maxHealth;
+                
+                ctx.fillStyle = '#444';
+                ctx.fillRect(this.x - barWidth/2, this.y - 25, barWidth, barHeight);
+                
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : '#ff4444';
+                ctx.fillRect(
+                    this.x - barWidth/2, 
+                    this.y - 25, 
+                    barWidth * healthPercent, 
+                    barHeight
+                );
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, target, damage) {
+                this.x = x;
+                this.y = y;
+                this.target = target;
+                this.damage = damage;
+                this.speed = 8;
+                this.homing = 0.15; // How aggressively it tracks
+            }
+
+            update() {
+                if (!this.target || !enemies.includes(this.target)) {
+                    return false; // Remove projectile if target is gone
+                }
+
+                // Calculate homing trajectory
+                let dx = this.target.x - this.x;
+                let dy = this.target.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 10) {
+                    // Hit the target
+                    if (this.target.takeDamage(this.damage)) {
+                        // Enemy destroyed
+                        gameState.score += this.target.reward;
+                        gameState.resources += this.target.reward;
+                        
+                        // Create explosion particles
+                        for (let i = 0; i < 8; i++) {
+                            particles.push(new Particle(
+                                this.target.x, this.target.y,
+                                Math.random() * Math.PI * 2,
+                                2 + Math.random() * 3
+                            ));
+                        }
+                        
+                        // Remove enemy
+                        let index = enemies.indexOf(this.target);
+                        if (index > -1) enemies.splice(index, 1);
+                    }
+                    return false; // Remove projectile
+                }
+
+                // Homing movement
+                dx /= distance;
+                dy /= distance;
+                
+                this.x += dx * this.speed;
+                this.y += dy * this.speed;
+                
+                return true; // Keep projectile
+            }
+
+            draw() {
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw trail
+                ctx.fillStyle = '#ffff0033';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, angle, speed) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 30;
+                this.maxLife = 30;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.life--;
+                return this.life > 0;
+            }
+
+            draw() {
+                let alpha = this.life / this.maxLife;
+                ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        /* =================================
+           GAME MECHANICS
+        ================================= */
+
+        function generateWave(waveNumber) {
+            let wave = [];
+            let enemyCount = 5 + waveNumber * 2;
+            
+            for (let i = 0; i < enemyCount; i++) {
+                let enemyType = Math.random();
+                let enemy;
+                
+                if (enemyType < 0.6) {
+                    // Basic enemy
+                    enemy = new Enemy(30 + waveNumber * 10, 1, 10);
+                } else if (enemyType < 0.9) {
+                    // Fast enemy
+                    enemy = new Enemy(20 + waveNumber * 5, 2, 15);
+                } else {
+                    // Tank enemy
+                    enemy = new Enemy(80 + waveNumber * 20, 0.5, 25);
+                }
+                
+                wave.push(enemy);
+            }
+            
+            return wave;
+        }
+
+        function spawnWave() {
+            currentWave = generateWave(gameState.wave);
+            enemiesSpawned = 0;
+            nextSpawnTime = performance.now();
+            waveComplete = false;
+        }
+
+        function checkWaveComplete() {
+            if (!waveComplete && currentWave.length === 0 && enemies.length === 0) {
+                waveComplete = true;
+                gameState.wave++;
+                gameState.resources += 50; // Wave completion bonus
+                
+                // Show wave complete message
+                document.getElementById('waveComplete').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('waveComplete').style.display = 'none';
+                    spawnWave(); // Start next wave
+                }, 2000);
+            }
+        }
+
+        function handleClick(event) {
+            if (!gameState.isPlaying || gameState.gameOver) return;
+            
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+            
+            // Check if click is on a valid placement spot and player has resources
+            if (gameState.resources >= 50) {
+                // Check if too close to existing turrets or path
+                let canPlace = true;
+                
+                for (let turret of turrets) {
+                    let distance = Math.sqrt((x - turret.x) ** 2 + (y - turret.y) ** 2);
+                    if (distance < 50) canPlace = false;
+                }
+                
+                // Check if too close to path
+                for (let point of enemyPath) {
+                    let distance = Math.sqrt((x - point.x) ** 2 + (y - point.y) ** 2);
+                    if (distance < 60) canPlace = false;
+                }
+                
+                if (canPlace && x > 50 && x < canvas.width - 50 && y > 50 && y < canvas.height - 50) {
+                    turrets.push(new Turret(x, y));
+                    gameState.resources -= 50;
+                }
+            }
+        }
+
+        /* =================================
+           GAME LOOP AND RENDERING
+        ================================= */
+
+        function gameLoop(timestamp) {
+            if (!gameState.isPlaying || gameState.gameOver) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw starfield background
+            drawBackground();
+            
+            // Draw enemy path
+            drawPath();
+            
+            // Spawn enemies from current wave
+            if (currentWave.length > 0 && timestamp >= nextSpawnTime) {
+                enemies.push(currentWave.shift());
+                nextSpawnTime = timestamp + 1000; // 1 second between spawns
+            }
+
+            // Update turrets
+            for (let turret of turrets) {
+                turret.update(timestamp);
+                turret.draw();
+            }
+
+            // Update enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+                enemy.update();
+                enemy.draw();
+                
+                if (enemy.reachedEnd()) {
+                    gameState.baseHealth -= 20;
+                    enemies.splice(i, 1);
+                    
+                    if (gameState.baseHealth <= 0) {
+                        endGame();
+                    }
+                }
+            }
+
+            // Update projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                if (!projectiles[i].update()) {
+                    projectiles.splice(i, 1);
+                } else {
+                    projectiles[i].draw();
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                if (!particles[i].update()) {
+                    particles.splice(i, 1);
+                } else {
+                    particles[i].draw();
+                }
+            }
+
+            // Check wave completion
+            checkWaveComplete();
+            
+            // Update UI
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawBackground() {
+            // Draw stars
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 100; i++) {
+                let x = (i * 137.5) % canvas.width;
+                let y = (i * 177.3) % canvas.height;
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        function drawPath() {
+            // Draw enemy path
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
+            ctx.lineWidth = 40;
+            ctx.beginPath();
+            ctx.moveTo(enemyPath[0].x, enemyPath[0].y);
+            
+            for (let i = 1; i < enemyPath.length; i++) {
+                ctx.lineTo(enemyPath[i].x, enemyPath[i].y);
+            }
+            ctx.stroke();
+            
+            // Draw path outline
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function updateUI() {
+            document.getElementById('wave').textContent = gameState.wave;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('resources').textContent = gameState.resources;
+            document.getElementById('baseHealth').textContent = gameState.baseHealth;
+            document.getElementById('enemiesLeft').textContent = enemies.length + currentWave.length;
+        }
+
+        /* =================================
+           GAME FLOW CONTROLS
+        ================================= */
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameState.isPlaying = true;
+            gameState.gameOver = false;
+            spawnWave();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            gameState.gameOver = true;
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('wavesSurvived').textContent = gameState.wave - 1;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function restartGame() {
+            // Reset game state
+            gameState = {
+                isPlaying: false,
+                score: 0,
+                resources: 100,
+                wave: 1,
+                baseHealth: 100,
+                gameOver: false
+            };
+            
+            // Clear game objects
+            turrets = [];
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            currentWave = [];
+            
+            // Hide game over screen and show start screen
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        // Event listeners
+        canvas.addEventListener('click', handleClick);
+
+        // Initialize the game
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
