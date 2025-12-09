@@ -8,7 +8,1714 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Defense Command</title><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Defense Command</title>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --primary-dark: #00cc6a;
+            --danger: #ff4444;
+            --warning: #ffaa00;
+            --bg-dark: #0a0a1a;
+            --bg-panel: rgba(0, 20, 40, 0.85);
+            --text: #ffffff;
+            --glow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            box-shadow: var(--glow), inset 0 0 50px rgba(0, 255, 136, 0.1);
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a1a 100%);
+            border-radius: 8px;
+        }
+
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--bg-panel);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--primary);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--glow);
+        }
+
+        .stat {
+            margin: 8px 0;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-label {
+            color: #aaa;
+            min-width: 90px;
+        }
+
+        .stat-value {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .stat-value.danger {
+            color: var(--danger);
+        }
+
+        .stat-value.warning {
+            color: var(--warning);
+        }
+
+        #costPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--bg-panel);
+            padding: 12px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--primary);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        #costPanel.can-afford {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        #costPanel.cannot-afford {
+            border-color: var(--danger);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+        }
+
+        .cost-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        .cost-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #turretSelect {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            gap: 8px;
+            z-index: 40;
+        }
+
+        .turret-option {
+            background: var(--bg-panel);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .turret-option:hover {
+            border-color: #888;
+            transform: translateY(-2px);
+        }
+
+        .turret-option.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .turret-option.cannot-afford {
+            opacity: 0.5;
+        }
+
+        .turret-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .turret-info {
+            text-align: left;
+        }
+
+        .turret-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .turret-cost {
+            font-size: 10px;
+            color: #aaa;
+        }
+
+        #controlPanel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+            z-index: 40;
+        }
+
+        #controlPanel button {
+            background: var(--bg-panel);
+            color: var(--text);
+            border: 2px solid #444;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        #controlPanel button:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        #controlPanel button.active {
+            border-color: var(--warning);
+            background: rgba(255, 170, 0, 0.2);
+        }
+
+        #controlPanel button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #nukeBtn {
+            border-color: #ff4444;
+        }
+
+        #nukeBtn:hover:not(:disabled) {
+            background: rgba(255, 68, 68, 0.2);
+            border-color: #ff6666;
+        }
+
+        #freezeBtn {
+            border-color: #44aaff;
+        }
+
+        #freezeBtn:hover:not(:disabled) {
+            background: rgba(68, 170, 255, 0.2);
+            border-color: #66ccff;
+        }
+
+        .boss-warning {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff0066;
+            text-shadow: 0 0 20px #ff0066;
+            z-index: 55;
+            animation: bossWarn 0.5s ease-in-out infinite;
+        }
+
+        @keyframes bossWarn {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .freeze-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(68, 170, 255, 0.2);
+            pointer-events: none;
+            z-index: 45;
+            animation: freezeFade 3s ease-out forwards;
+        }
+
+        @keyframes freezeFade {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .nuke-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            z-index: 45;
+            animation: nukeFade 0.5s ease-out forwards;
+        }
+
+        @keyframes nukeFade {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        #upgradePanel {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-panel);
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--primary);
+            backdrop-filter: blur(10px);
+            display: none;
+            text-align: center;
+        }
+
+        #upgradePanel h3 {
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        #upgradePanel .stats {
+            font-size: 12px;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+
+        .upgrade-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #upgradePanel button {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        #upgradePanel button:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        #upgradePanel button:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #startScreen, #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        #gameOver {
+            display: none;
+        }
+
+        #startScreen h1, #gameOver h1 {
+            font-size: 48px;
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-shadow: var(--glow);
+            letter-spacing: 3px;
+        }
+
+        #startScreen p, #gameOver p {
+            color: #aaa;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        #startScreen button, #gameOver button {
+            font-size: 20px;
+            padding: 15px 40px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        #startScreen button:hover, #gameOver button:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+            box-shadow: var(--glow);
+        }
+
+        #instructions {
+            margin-top: 30px;
+            max-width: 400px;
+        }
+
+        .instruction-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 12px 0;
+            text-align: left;
+            color: #ccc;
+        }
+
+        .instruction-item .icon {
+            font-size: 24px;
+            width: 40px;
+            text-align: center;
+        }
+
+        #finalScore, #wavesSurvived {
+            color: var(--primary);
+            font-size: 24px;
+        }
+
+        .popup-message {
+            position: absolute;
+            background: var(--bg-panel);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            color: var(--text);
+            font-size: 14px;
+            pointer-events: none;
+            animation: fadeUp 1.5s ease-out forwards;
+            z-index: 50;
+        }
+
+        .popup-message.error {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        @keyframes fadeUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+
+        .wave-announcement {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            color: var(--primary);
+            text-shadow: var(--glow);
+            z-index: 50;
+            animation: waveAnnounce 2s ease-out forwards;
+        }
+
+        @keyframes waveAnnounce {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        #waveBreak {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-panel);
+            padding: 25px 40px;
+            border-radius: 15px;
+            border: 2px solid var(--primary);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--glow);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 60;
+            text-align: center;
+        }
+
+        #waveBreak h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            text-shadow: var(--glow);
+        }
+
+        .break-timer {
+            font-size: 18px;
+            margin: 15px 0;
+            color: #ccc;
+        }
+
+        .timer-num {
+            font-size: 48px;
+            font-weight: bold;
+            color: var(--primary);
+            display: block;
+            margin: 10px 0;
+            text-shadow: var(--glow);
+        }
+
+        .break-info {
+            margin: 15px 0;
+            color: #aaa;
+        }
+
+        .break-info .hint {
+            color: var(--warning);
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        #waveBreak button {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        #waveBreak button:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1000" height="700"></canvas>
+        
+        <div id="ui">
+            <div class="stat">
+                <span class="stat-label">Wave:</span>
+                <span class="stat-value" id="wave">1</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Score:</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Resources:</span>
+                <span class="stat-value" id="resources">100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Base Health:</span>
+                <span class="stat-value" id="baseHealth">100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Enemies:</span>
+                <span class="stat-value" id="enemiesLeft">0</span>
+            </div>
+        </div>
+
+        <div id="costPanel" class="can-afford">
+            <div class="cost-label">SELECTED TURRET</div>
+            <div class="cost-value" id="selectedTurretName">💎 50</div>
+        </div>
+
+        <div id="turretSelect">
+            <div class="turret-option selected" data-type="basic" onclick="selectTurretType('basic')">
+                <div class="turret-icon" style="background: #00ff88;">B</div>
+                <div class="turret-info">
+                    <div class="turret-name">Basic</div>
+                    <div class="turret-cost">50 💎</div>
+                </div>
+            </div>
+            <div class="turret-option" data-type="rapid" onclick="selectTurretType('rapid')">
+                <div class="turret-icon" style="background: #00ccff;">R</div>
+                <div class="turret-info">
+                    <div class="turret-name">Rapid</div>
+                    <div class="turret-cost">75 💎</div>
+                </div>
+            </div>
+            <div class="turret-option" data-type="cannon" onclick="selectTurretType('cannon')">
+                <div class="turret-icon" style="background: #ff8800;">C</div>
+                <div class="turret-info">
+                    <div class="turret-name">Cannon</div>
+                    <div class="turret-cost">100 💎</div>
+                </div>
+            </div>
+            <div class="turret-option" data-type="slow" onclick="selectTurretType('slow')">
+                <div class="turret-icon" style="background: #aa44ff;">S</div>
+                <div class="turret-info">
+                    <div class="turret-name">Slow</div>
+                    <div class="turret-cost">60 💎</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="controlPanel">
+            <button id="fastForwardBtn" onclick="toggleFastForward()">▶▶ 1x</button>
+            <button id="nukeBtn" onclick="useNuke()">💥 Nuke (200💎)</button>
+            <button id="freezeBtn" onclick="useFreeze()">❄️ Freeze (100💎)</button>
+        </div>
+
+        <div id="upgradePanel">
+            <h3>⚙️ TURRET OPTIONS</h3>
+            <div class="stats" id="turretStats"></div>
+            <div class="upgrade-buttons">
+                <button id="upgradeBtn" onclick="upgradeTurret()">Upgrade (75 💎)</button>
+                <button id="sellBtn" onclick="sellTurret()" style="background: #ff4444;">Sell (+25 💎)</button>
+                <button onclick="closeUpgradePanel()" style="background: #444; color: #fff;">Close</button>
+            </div>
+        </div>
+
+        <div id="waveBreak">
+            <div class="break-content">
+                <h2>⚡ WAVE CLEARED!</h2>
+                <div class="break-timer">
+                    <span>Next wave in:</span>
+                    <span id="breakTimer" class="timer-num">10</span>
+                    <span>seconds</span>
+                </div>
+                <div class="break-info">
+                    <p>Wave <span id="nextWaveNum">2</span> incoming: <span id="nextEnemyCount">9</span> enemies</p>
+                    <p class="hint">Place turrets & upgrade now!</p>
+                </div>
+                <button onclick="skipBreak()">START NOW →</button>
+            </div>
+        </div>
+
+        <div id="startScreen">
+            <h1>SPACE DEFENSE COMMAND</h1>
+            <p>Place turrets, defend your base, survive the alien invasion</p>
+            <button onclick="startGame()">LAUNCH DEFENSE</button>
+            <div id="instructions">
+                <div class="instruction-item">
+                    <div class="icon">🎯</div>
+                    <div>4 turret types: Basic, Rapid, Cannon, Slow</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="icon">👾</div>
+                    <div>Enemy types: Normal, Scout (fast), Tank (tough), BOSS!</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="icon">💥</div>
+                    <div>Special abilities: Nuke (200💎) & Freeze (100💎)</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="icon">⚠️</div>
+                    <div>Boss every 5 waves - prepare your defense!</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameOver">
+            <h1>DEFENSE BREACHED</h1>
+            <p>Your base has fallen to the alien invasion</p>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>Waves Survived: <span id="wavesSurvived">0</span></p>
+            <button onclick="restartGame()">REDEPLOY DEFENSES</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameState = {
+            isPlaying: false,
+            score: 0,
+            resources: 100,
+            wave: 1,
+            baseHealth: 100,
+            gameOver: false,
+            waveSpawning: false
+        };
+
+        // Game objects
+        let turrets = [];
+        let enemies = [];
+        let projectiles = [];
+        let particles = [];
+        let stars = [];
+        let selectedTurret = null;
+
+        // Base position (right side)
+        const base = {
+            x: canvas.width - 60,
+            y: canvas.height / 2,
+            width: 80,
+            height: 120
+        };
+
+        // Initialize starfield
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 150; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    speed: Math.random() * 0.5 + 0.1,
+                    brightness: Math.random()
+                });
+            }
+        }
+
+        // Turret types configuration
+        const turretTypes = {
+            basic: {
+                name: 'Basic',
+                cost: 50,
+                color: '#00ff88',
+                colorDark: '#00cc6a',
+                baseRange: 150,
+                baseDamage: 25,
+                baseFireRate: 800,
+                description: 'Balanced turret'
+            },
+            rapid: {
+                name: 'Rapid',
+                cost: 75,
+                color: '#00ccff',
+                colorDark: '#0099cc',
+                baseRange: 120,
+                baseDamage: 10,
+                baseFireRate: 250,
+                description: 'Fast shots, low damage'
+            },
+            cannon: {
+                name: 'Cannon',
+                cost: 100,
+                color: '#ff8800',
+                colorDark: '#cc6600',
+                baseRange: 180,
+                baseDamage: 60,
+                baseFireRate: 1500,
+                splash: 40,
+                description: 'Slow, high damage, splash'
+            },
+            slow: {
+                name: 'Slow',
+                cost: 60,
+                color: '#aa44ff',
+                colorDark: '#7722cc',
+                baseRange: 130,
+                baseDamage: 5,
+                baseFireRate: 600,
+                slowAmount: 0.5,
+                slowDuration: 2000,
+                description: 'Slows enemies down'
+            }
+        };
+
+        let selectedTurretType = 'basic';
+
+        // Turret class with upgrade system
+        class Turret {
+            constructor(x, y, type = 'basic') {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.config = turretTypes[type];
+                this.level = 1;
+                this.maxLevel = 3;
+                this.baseRange = this.config.baseRange;
+                this.baseDamage = this.config.baseDamage;
+                this.baseFireRate = this.config.baseFireRate;
+                this.splash = this.config.splash || 0;
+                this.updateStats();
+                this.lastShot = 0;
+                this.target = null;
+                this.angle = 0;
+            }
+
+            getSellValue() {
+                // 50% of total invested (base cost + upgrade costs)
+                let totalInvested = this.config.cost;
+                for (let i = 1; i < this.level; i++) {
+                    totalInvested += 50 + i * 25;
+                }
+                return Math.floor(totalInvested * 0.5);
+            }
+
+            updateStats() {
+                this.range = this.baseRange + (this.level - 1) * 40;
+                this.damage = this.baseDamage + (this.level - 1) * 15;
+                this.fireRate = Math.max(300, this.baseFireRate - (this.level - 1) * 200);
+            }
+
+            getUpgradeCost() {
+                return this.level < this.maxLevel ? 50 + this.level * 25 : null;
+            }
+
+            upgrade() {
+                if (this.level < this.maxLevel) {
+                    this.level++;
+                    this.updateStats();
+                    return true;
+                }
+                return false;
+            }
+
+            findTarget() {
+                let closest = null;
+                let closestDist = this.range;
+                
+                for (let enemy of enemies) {
+                    let dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closest = enemy;
+                    }
+                }
+                this.target = closest;
+            }
+
+            update(currentTime) {
+                this.findTarget();
+                
+                if (this.target) {
+                    this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                    
+                    // Adjust fire rate by game speed
+                    let adjustedFireRate = this.fireRate / gameSpeed;
+                    if (currentTime - this.lastShot > adjustedFireRate) {
+                        projectiles.push(new Projectile(this.x, this.y, this.target, this.damage, this.level, this.type));
+                        this.lastShot = currentTime;
+                    }
+                }
+            }
+
+            draw() {
+                // Range indicator when selected
+                if (selectedTurret === this) {
+                    ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = 'rgba(0, 255, 136, 0.05)';
+                    ctx.fill();
+                }
+
+                // Use turret type colors
+                const color = {
+                    main: this.config.color,
+                    dark: this.config.colorDark
+                };
+
+                // Turret base
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, 25);
+                gradient.addColorStop(0, color.main);
+                gradient.addColorStop(0.7, color.dark);
+                gradient.addColorStop(1, '#004433');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 22 + this.level * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Outer ring
+                ctx.strokeStyle = color.main;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Core
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 6 + this.level, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Barrel - different style per type
+                ctx.strokeStyle = color.main;
+                ctx.lineWidth = this.type === 'cannon' ? 10 + this.level * 2 : 6 + this.level * 2;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(
+                    this.x + Math.cos(this.angle) * (28 + this.level * 4),
+                    this.y + Math.sin(this.angle) * (28 + this.level * 4)
+                );
+                ctx.stroke();
+
+                // Barrel highlight
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Level indicator
+                ctx.fillStyle = color.main;
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('★'.repeat(this.level), this.x, this.y + 35);
+                
+                // Type indicator
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = 'bold 8px sans-serif';
+                ctx.fillText(this.config.name.toUpperCase(), this.x, this.y - 30);
+            }
+        }
+
+        // Projectile class
+        class Projectile {
+            constructor(x, y, target, damage, level = 1, turretType = 'basic') {
+                this.x = x;
+                this.y = y;
+                this.target = target;
+                this.damage = damage;
+                this.level = level;
+                this.turretType = turretType;
+                // Rapid is faster, cannon is slower
+                if (turretType === 'rapid') {
+                    this.speed = 8 + level;
+                } else if (turretType === 'cannon') {
+                    this.speed = 3 + level * 0.5;
+                } else if (turretType === 'slow') {
+                    this.speed = 6 + level;
+                } else {
+                    this.speed = 4 + level;
+                }
+                this.homing = 0.12;
+                this.trail = [];
+                this.splash = turretType === 'cannon' ? 40 + level * 10 : 0;
+                
+                // Slow effect properties
+                if (turretType === 'slow') {
+                    this.slowAmount = 0.5 - (level - 1) * 0.1; // Level 1: 50%, Level 2: 40%, Level 3: 30%
+                    this.slowDuration = 2000 + (level - 1) * 500;
+                }
+            }
+
+            update() {
+                if (!this.target || !enemies.includes(this.target)) {
+                    return false;
+                }
+
+                // Store trail
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 8) this.trail.shift();
+
+                // Homing
+                let dx = this.target.x - this.x;
+                let dy = this.target.y - this.y;
+                let dist = Math.hypot(dx, dy);
+
+                if (dist < 15) {
+                    this.target.health -= this.damage;
+                    
+                    // Apply slow effect
+                    if (this.turretType === 'slow') {
+                        this.target.applySlow(this.slowAmount, this.slowDuration);
+                    }
+                    
+                    // Splash damage for cannon
+                    if (this.splash > 0) {
+                        for (let enemy of enemies) {
+                            if (enemy !== this.target) {
+                                let splashDist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                                if (splashDist < this.splash) {
+                                    enemy.health -= this.damage * 0.5;
+                                }
+                            }
+                        }
+                        createExplosion(this.x, this.y, 3);
+                    } else {
+                        createExplosion(this.x, this.y, this.level);
+                    }
+                    return false;
+                }
+
+                this.x += (dx / dist) * this.speed * gameSpeed;
+                this.y += (dy / dist) * this.speed * gameSpeed;
+                return true;
+            }
+
+            draw() {
+                // Trail
+                const trailColors = {
+                    basic: '#00ff88',
+                    rapid: '#00ccff', 
+                    cannon: '#ff8800',
+                    slow: '#aa44ff'
+                };
+                
+                for (let i = 0; i < this.trail.length; i++) {
+                    let alpha = i / this.trail.length * 0.5;
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = trailColors[this.turretType];
+                    ctx.beginPath();
+                    ctx.arc(this.trail[i].x, this.trail[i].y, this.turretType === 'cannon' ? 4 : 2 + this.level, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                // Main projectile
+                ctx.fillStyle = trailColors[this.turretType];
+                ctx.shadowColor = trailColors[this.turretType];
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                let size = this.turretType === 'cannon' ? 6 + this.level : 4 + this.level;
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Enemy types configuration
+        const enemyTypes = {
+            scout: {
+                name: 'Scout',
+                color: '#ffff00',
+                colorDark: '#cccc00',
+                speedMult: 2.0,
+                healthMult: 0.4,
+                sizeMult: 0.7,
+                valueMult: 0.8
+            },
+            normal: {
+                name: 'Normal',
+                color: '#ff6666',
+                colorDark: '#cc3333',
+                speedMult: 1.0,
+                healthMult: 1.0,
+                sizeMult: 1.0,
+                valueMult: 1.0
+            },
+            tank: {
+                name: 'Tank',
+                color: '#aa44ff',
+                colorDark: '#7722cc',
+                speedMult: 0.5,
+                healthMult: 2.5,
+                sizeMult: 1.4,
+                valueMult: 2.0
+            },
+            boss: {
+                name: 'BOSS',
+                color: '#ff0066',
+                colorDark: '#cc0044',
+                speedMult: 0.3,
+                healthMult: 10.0,
+                sizeMult: 2.0,
+                valueMult: 10.0
+            }
+        };
+
+        // Game speed multiplier
+        let gameSpeed = 1;
+
+        // Single lane for enemy path
+        const lane = 350;  // Center of screen
+
+        // Enemy class
+        class Enemy {
+            constructor(wave, type = 'normal') {
+                this.x = -30;
+                this.y = lane;
+                this.type = type;
+                this.config = enemyTypes[type];
+                
+                // Base stats modified by type
+                let baseSpeed = 0.4 + wave * 0.08;
+                let baseHealth = 40 + wave * 15;
+                let baseSize = 18 + Math.min(wave, 10);
+                let baseValue = 10 + wave * 3;
+                
+                this.baseSpeed = baseSpeed * this.config.speedMult;
+                this.speed = this.baseSpeed + Math.random() * 0.1;
+                this.maxHealth = Math.floor(baseHealth * this.config.healthMult);
+                this.health = this.maxHealth;
+                this.size = Math.floor(baseSize * this.config.sizeMult);
+                this.value = Math.floor(baseValue * this.config.valueMult);
+                
+                // Slow effect
+                this.slowedUntil = 0;
+                this.slowAmount = 1;
+            }
+
+            applySlow(amount, duration) {
+                this.slowAmount = amount;
+                this.slowedUntil = Date.now() + duration;
+            }
+
+            update() {
+                // Check if slow expired
+                if (Date.now() > this.slowedUntil) {
+                    this.slowAmount = 1;
+                }
+                
+                // Apply speed with slow effect and game speed
+                let currentSpeed = this.speed * this.slowAmount * gameSpeed;
+                
+                // Straight horizontal path toward base - strict lane movement
+                this.x += currentSpeed;
+                // Keep Y position locked to lane
+                this.y = lane;
+
+                // Check if reached base
+                if (this.x > base.x - 40) {
+                    gameState.baseHealth -= 10;
+                    updateUI();
+                    return false;
+                }
+
+                // Check if dead
+                if (this.health <= 0) {
+                    gameState.score += this.value;
+                    gameState.resources += Math.floor(this.value / 2);
+                    createExplosion(this.x, this.y, 2);
+                    updateUI();
+                    return false;
+                }
+
+                return true;
+            }
+
+            draw() {
+                // Slow effect indicator
+                if (this.slowAmount < 1) {
+                    ctx.strokeStyle = 'rgba(170, 68, 255, 0.5)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Enemy body - use type colors
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                gradient.addColorStop(0, this.config.color);
+                gradient.addColorStop(0.5, this.config.colorDark);
+                gradient.addColorStop(1, '#220000');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Spikes - different count per type
+                ctx.strokeStyle = this.config.color;
+                ctx.lineWidth = this.type === 'tank' || this.type === 'boss' ? 4 : 3;
+                let spikeCount = this.type === 'scout' ? 4 : this.type === 'boss' ? 12 : this.type === 'tank' ? 8 : 6;
+                for (let i = 0; i < spikeCount; i++) {
+                    let angle = (i / spikeCount) * Math.PI * 2 + Date.now() / 1000;
+                    let spikeLength = this.type === 'boss' ? 15 : 8;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + Math.cos(angle) * this.size, this.y + Math.sin(angle) * this.size);
+                    ctx.lineTo(this.x + Math.cos(angle) * (this.size + spikeLength), this.y + Math.sin(angle) * (this.size + spikeLength));
+                    ctx.stroke();
+                }
+
+                // Health bar
+                let healthPercent = this.health / this.maxHealth;
+                let barWidth = this.size * 2;
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - barWidth/2, this.y - this.size - 12, barWidth, 6);
+                
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff88' : healthPercent > 0.25 ? '#ffaa00' : '#ff4444';
+                ctx.fillRect(this.x - barWidth/2, this.y - this.size - 12, barWidth * healthPercent, 6);
+                
+                // Type label for tanks and bosses
+                if (this.type === 'tank' || this.type === 'boss') {
+                    ctx.fillStyle = this.type === 'boss' ? '#ff0066' : 'rgba(255,255,255,0.7)';
+                    ctx.font = this.type === 'boss' ? 'bold 12px sans-serif' : 'bold 8px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.type.toUpperCase(), this.x, this.y - this.size - 16);
+                }
+                
+                // Boss glow effect
+                if (this.type === 'boss') {
+                    ctx.strokeStyle = `rgba(255, 0, 102, ${0.3 + Math.sin(Date.now() / 200) * 0.2})`;
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Particle class
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.life = 30;
+                this.maxLife = 30;
+                this.color = color;
+                this.size = Math.random() * 4 + 2;
+            }
+
+            update() {
+                this.x += this.vx * gameSpeed;
+                this.y += this.vy * gameSpeed;
+                this.vx *= 0.95;
+                this.vy *= 0.95;
+                this.life -= gameSpeed;
+                return this.life > 0;
+            }
+
+            draw() {
+                let alpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function createExplosion(x, y, intensity = 1) {
+            const colors = ['rgb(255, 136, 0)', 'rgb(255, 200, 0)', 'rgb(255, 68, 68)', 'rgb(255, 255, 255)'];
+            for (let i = 0; i < 8 * intensity; i++) {
+                particles.push(new Particle(x, y, colors[Math.floor(Math.random() * colors.length)]));
+            }
+        }
+
+        function spawnWave() {
+            // Wave 1 = 4 enemies, then +5 per wave (wave 2 = 9, wave 3 = 14, etc.)
+            let enemyCount = 4 + (gameState.wave - 1) * 5;
+            gameState.waveSpawning = true;
+            
+            // Boss wave every 5 waves
+            let isBossWave = gameState.wave % 5 === 0;
+            
+            for (let i = 0; i < enemyCount; i++) {
+                // Determine enemy type based on wave and randomness
+                let type = 'normal';
+                let roll = Math.random();
+                
+                // Scouts appear from wave 2+
+                if (gameState.wave >= 2 && roll < 0.3) {
+                    type = 'scout';
+                }
+                // Tanks appear from wave 3+
+                else if (gameState.wave >= 3 && roll > 0.85) {
+                    type = 'tank';
+                }
+                
+                // Slower spawn rate - more time between enemies
+                setTimeout(() => {
+                    if (gameState.isPlaying && !gameState.gameOver) {
+                        enemies.push(new Enemy(gameState.wave, type));
+                    }
+                    // Mark spawning complete after last enemy
+                    if (i === enemyCount - 1) {
+                        gameState.waveSpawning = false;
+                    }
+                }, i * (1200 - Math.min(gameState.wave * 40, 600)));
+            }
+            
+            // Spawn boss at the end of boss waves
+            if (isBossWave) {
+                setTimeout(() => {
+                    if (gameState.isPlaying && !gameState.gameOver) {
+                        enemies.push(new Enemy(gameState.wave, 'boss'));
+                        showBossWarning();
+                    }
+                }, enemyCount * (1200 - Math.min(gameState.wave * 40, 600)) + 1000);
+            }
+            
+            showWaveAnnouncement(isBossWave);
+        }
+        
+        function showBossWarning() {
+            const warning = document.createElement('div');
+            warning.className = 'boss-warning';
+            warning.textContent = '⚠️ BOSS INCOMING! ⚠️';
+            document.getElementById('gameContainer').appendChild(warning);
+            setTimeout(() => warning.remove(), 2000);
+        }
+
+        let waveBreakTimer = null;
+        let breakTimeLeft = 0;
+
+        function startWaveBreak() {
+            breakTimeLeft = 10;
+            updateBreakDisplay();
+            document.getElementById('waveBreak').style.display = 'flex';
+            
+            waveBreakTimer = setInterval(() => {
+                breakTimeLeft--;
+                updateBreakDisplay();
+                
+                if (breakTimeLeft <= 0) {
+                    clearInterval(waveBreakTimer);
+                    document.getElementById('waveBreak').style.display = 'none';
+                    gameState.wave++;
+                    spawnWave();
+                }
+            }, 1000);
+        }
+
+        function updateBreakDisplay() {
+            document.getElementById('breakTimer').textContent = breakTimeLeft;
+            document.getElementById('nextWaveNum').textContent = gameState.wave + 1;
+            // Show how many enemies next wave
+            let nextEnemyCount = 4 + gameState.wave * 5;
+            document.getElementById('nextEnemyCount').textContent = nextEnemyCount;
+        }
+
+        function skipBreak() {
+            if (waveBreakTimer) {
+                clearInterval(waveBreakTimer);
+                document.getElementById('waveBreak').style.display = 'none';
+                gameState.wave++;
+                spawnWave();
+            }
+        }
+
+        function showWaveAnnouncement(isBossWave = false) {
+            const announcement = document.createElement('div');
+            announcement.className = 'wave-announcement';
+            if (isBossWave) {
+                announcement.innerHTML = `WAVE ${gameState.wave}<br><span style="color: #ff0066; font-size: 24px;">⚠️ BOSS WAVE ⚠️</span>`;
+            } else {
+                announcement.textContent = `WAVE ${gameState.wave}`;
+            }
+            document.getElementById('gameContainer').appendChild(announcement);
+            setTimeout(() => announcement.remove(), 2000);
+        }
+
+        function showPopup(x, y, message, isError = false) {
+            const popup = document.createElement('div');
+            popup.className = 'popup-message' + (isError ? ' error' : '');
+            popup.textContent = message;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            document.getElementById('gameContainer').appendChild(popup);
+            setTimeout(() => popup.remove(), 1500);
+        }
+
+        function handleClick(e) {
+            if (!gameState.isPlaying || gameState.gameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Check if clicked on existing turret
+            for (let turret of turrets) {
+                if (Math.hypot(x - turret.x, y - turret.y) < 30) {
+                    selectedTurret = turret;
+                    showUpgradePanel(turret);
+                    return;
+                }
+            }
+
+            // Close upgrade panel if clicking elsewhere
+            closeUpgradePanel();
+
+            // Check placement validity
+            if (x > canvas.width - 150) {
+                showPopup(x, y - 20, "Too close to base!", true);
+                return;
+            }
+
+            for (let turret of turrets) {
+                if (Math.hypot(x - turret.x, y - turret.y) < 60) {
+                    showPopup(x, y - 20, "Too close to turret!", true);
+                    return;
+                }
+            }
+
+            if (gameState.resources >= turretTypes[selectedTurretType].cost) {
+                turrets.push(new Turret(x, y, selectedTurretType));
+                gameState.resources -= turretTypes[selectedTurretType].cost;
+                showPopup(x, y - 20, `${turretTypes[selectedTurretType].name} deployed!`);
+                updateUI();
+            } else {
+                showPopup(x, y - 20, `Need ${turretTypes[selectedTurretType].cost} resources!`, true);
+            }
+        }
+
+        function selectTurretType(type) {
+            selectedTurretType = type;
+            // Update UI
+            document.querySelectorAll('.turret-option').forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.dataset.type === type) {
+                    opt.classList.add('selected');
+                }
+            });
+            updateUI();
+        }
+
+        function showUpgradePanel(turret) {
+            const panel = document.getElementById('upgradePanel');
+            const stats = document.getElementById('turretStats');
+            const btn = document.getElementById('upgradeBtn');
+            const sellBtn = document.getElementById('sellBtn');
+            
+            stats.innerHTML = `${turret.config.name} Lv${turret.level}/${turret.maxLevel} | DMG: ${turret.damage} | Range: ${turret.range}`;
+            
+            const cost = turret.getUpgradeCost();
+            if (cost) {
+                btn.textContent = `Upgrade (${cost} 💎)`;
+                btn.disabled = gameState.resources < cost;
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+            
+            // Sell button
+            const sellValue = turret.getSellValue();
+            sellBtn.textContent = `Sell (+${sellValue} 💎)`;
+            
+            panel.style.display = 'flex';
+        }
+
+        function sellTurret() {
+            if (!selectedTurret) return;
+            
+            const sellValue = selectedTurret.getSellValue();
+            gameState.resources += sellValue;
+            
+            // Remove turret from array
+            const index = turrets.indexOf(selectedTurret);
+            if (index > -1) {
+                turrets.splice(index, 1);
+            }
+            
+            showPopup(selectedTurret.x, selectedTurret.y - 30, `Sold for ${sellValue} 💎`);
+            closeUpgradePanel();
+            updateUI();
+        }
+
+        function toggleFastForward() {
+            if (gameSpeed === 1) {
+                gameSpeed = 2;
+                document.getElementById('fastForwardBtn').textContent = '▶▶ 2x';
+                document.getElementById('fastForwardBtn').classList.add('active');
+            } else {
+                gameSpeed = 1;
+                document.getElementById('fastForwardBtn').textContent = '▶▶ 1x';
+                document.getElementById('fastForwardBtn').classList.remove('active');
+            }
+        }
+
+        function useNuke() {
+            if (gameState.resources < 200 || enemies.length === 0) return;
+            
+            gameState.resources -= 200;
+            
+            // Damage all enemies
+            for (let enemy of enemies) {
+                enemy.health -= 100;
+                createExplosion(enemy.x, enemy.y, 2);
+            }
+            
+            // Visual effect
+            const effect = document.createElement('div');
+            effect.className = 'nuke-effect';
+            document.getElementById('gameContainer').appendChild(effect);
+            setTimeout(() => effect.remove(), 500);
+            
+            showPopup(canvas.width / 2, canvas.height / 2, '💥 NUKE ACTIVATED!');
+            updateUI();
+        }
+
+        function useFreeze() {
+            if (gameState.resources < 100 || enemies.length === 0) return;
+            
+            gameState.resources -= 100;
+            
+            // Freeze all enemies for 3 seconds
+            for (let enemy of enemies) {
+                enemy.applySlow(0, 3000); // 0 = completely stopped
+            }
+            
+            // Visual effect
+            const effect = document.createElement('div');
+            effect.className = 'freeze-effect';
+            document.getElementById('gameContainer').appendChild(effect);
+            setTimeout(() => effect.remove(), 3000);
+            
+            showPopup(canvas.width / 2, canvas.height / 2, '❄️ FREEZE ACTIVATED!');
+            updateUI();
+        }
+
+        function closeUpgradePanel() {
+            document.getElementById('upgradePanel').style.display = 'none';
+            selectedTurret = null;
+        }
+
+        function upgradeTurret() {
+            if (!selectedTurret) return;
+            
+            const cost = selectedTurret.getUpgradeCost();
+            if (cost && gameState.resources >= cost) {
+                gameState.resources -= cost;
+                selectedTurret.upgrade();
+                showPopup(selectedTurret.x, selectedTurret.y - 30, `Upgraded to Level ${selectedTurret.level}!`);
+                showUpgradePanel(selectedTurret);
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('wave').textContent = gameState.wave;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('resources').textContent = gameState.resources;
+            document.getElementById('baseHealth').textContent = gameState.baseHealth;
+            document.getElementById('enemiesLeft').textContent = enemies.length;
+
+            // Health color
+            const healthEl = document.getElementById('baseHealth');
+            healthEl.className = 'stat-value';
+            if (gameState.baseHealth <= 25) healthEl.classList.add('danger');
+            else if (gameState.baseHealth <= 50) healthEl.classList.add('warning');
+
+            // Cost panel - show selected turret
+            const costPanel = document.getElementById('costPanel');
+            const selectedConfig = turretTypes[selectedTurretType];
+            document.getElementById('selectedTurretName').textContent = `${selectedConfig.name} - ${selectedConfig.cost} 💎`;
+            costPanel.className = gameState.resources >= selectedConfig.cost ? 'can-afford' : 'cannot-afford';
+            
+            // Update turret selection buttons affordability
+            document.querySelectorAll('.turret-option').forEach(opt => {
+                const type = opt.dataset.type;
+                const cost = turretTypes[type].cost;
+                if (gameState.resources < cost) {
+                    opt.classList.add('cannot-afford');
+                } else {
+                    opt.classList.remove('cannot-afford');
+                }
+            });
+            
+            // Update ability buttons
+            document.getElementById('nukeBtn').disabled = gameState.resources < 200;
+            document.getElementById('freezeBtn').disabled = gameState.resources < 100;
+        }
+
+        function drawStars() {
+            for (let star of stars) {
+                star.x -= star.speed;
+                if (star.x < 0) {
+                    star.x = canvas.width;
+                    star.y = Math.random() * canvas.height;
+                }
+                
+                let twinkle = 0.5 + Math.sin(Date.now() / 500 + star.brightness * 10) * 0.5;
+                ctx.fillStyle = `rgba(255, 255, 255, ${twinkle * star.brightness})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawLanes() {
+            // Draw single lane path so player knows where enemies will travel
+            let y = lane;
+            
+            // Lane background stripe
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.08)';
+            ctx.fillRect(0, y - 30, canvas.width - 100, 60);
+            
+            // Lane guide line (dashed)
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.25)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 15]);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width - 100, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Lane edges
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, y - 30);
+            ctx.lineTo(canvas.width - 100, y - 30);
+            ctx.moveTo(0, y + 30);
+            ctx.lineTo(canvas.width - 100, y + 30);
+            ctx.stroke();
+        }
+
+        function drawBase() {
+            // Base glow
+            const glow = ctx.createRadialGradient(base.x, base.y, 0, base.x, base.y, 80);
+            glow.addColorStop(0, 'rgba(0, 136, 255, 0.3)');
+            glow.addColorStop(1, 'rgba(0, 136, 255, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(base.x, base.y, 80, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Base structure
+            const gradient = ctx.createLinearGradient(base.x - 40, 0, base.x + 40, 0);
+            gradient.addColorStop(0, '#0066aa');
+            gradient.addColorStop(0.5, '#0088ff');
+            gradient.addColorStop(1, '#0066aa');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(base.x - 30, base.y + 50);
+            ctx.lineTo(base.x - 40, base.y);
+            ctx.lineTo(base.x - 30, base.y - 50);
+            ctx.lineTo(base.x + 20, base.y - 40);
+            ctx.lineTo(base.x + 30, base.y);
+            ctx.lineTo(base.x + 20, base.y + 40);
+            ctx.closePath();
+            ctx.fill();
+
+            // Shield effect
+            ctx.strokeStyle = `rgba(0, 200, 255, ${0.3 + Math.sin(Date.now() / 300) * 0.2})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(base.x, base.y, 55, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Health indicator
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('BASE', base.x, base.y + 70);
+        }
+
+        function gameLoop(timestamp) {
+            // Clear
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            drawStars();
+            drawLanes();
+
+            if (gameState.isPlaying && !gameState.gameOver) {
+                // Update
+                turrets.forEach(t => t.update(timestamp));
+                projectiles = projectiles.filter(p => p.update());
+                enemies = enemies.filter(e => e.update());
+                particles = particles.filter(p => p.update());
+
+                // Check wave complete - start break timer instead of immediate spawn
+                if (enemies.length === 0 && gameState.isPlaying && !gameState.waveSpawning && document.getElementById('waveBreak').style.display !== 'flex') {
+                    startWaveBreak();
+                }
+
+                // Check game over
+                if (gameState.baseHealth <= 0) {
+                    gameState.gameOver = true;
+                    document.getElementById('finalScore').textContent = gameState.score;
+                    document.getElementById('wavesSurvived').textContent = gameState.wave - 1;
+                    document.getElementById('gameOver').style.display = 'flex';
+                }
+
+                updateUI();
+            }
+
+            // Draw
+            drawBase();
+            turrets.forEach(t => t.draw());
+            enemies.forEach(e => e.draw());
+            projectiles.forEach(p => p.draw());
+            particles.forEach(p => p.draw());
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameState = {
+                isPlaying: true,
+                score: 0,
+                resources: 100,
+                wave: 1,
+                baseHealth: 100,
+                gameOver: false,
+                waveSpawning: false
+            };
+            turrets = [];
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            
+            // Reset game speed
+            gameSpeed = 1;
+            document.getElementById('fastForwardBtn').textContent = '▶▶ 1x';
+            document.getElementById('fastForwardBtn').classList.remove('active');
+            
+            // Clear any existing break timer
+            if (waveBreakTimer) {
+                clearInterval(waveBreakTimer);
+            }
+            document.getElementById('waveBreak').style.display = 'none';
+            
+            initStars();
+            document.getElementById('startScreen').style.display = 'none';
+            spawnWave();
+            updateUI();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        // Event listeners
+        canvas.addEventListener('click', handleClick);
+        initStars();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
+
     <style>
         :root {
             --primary: #00ff88;
